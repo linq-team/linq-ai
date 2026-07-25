@@ -91,29 +91,41 @@ test('the launcher starts a server advertising both tools', { skip: SKIP }, asyn
 });
 
 test('search_docs returns documentation', { skip: SKIP }, async () => {
-  const { result } = await server.request('tools/call', {
+  const response = await server.request('tools/call', {
     name: 'search_docs',
     arguments: { query: 'send a message', language: 'typescript' },
   });
-  assert.notEqual(result.isError, true, `search_docs errored: ${result.content?.[0]?.text}`);
-  assert.match(result.content[0].text, /client\./);
+  assert.ok(!response.error, `search_docs returned a JSON-RPC error: ${JSON.stringify(response.error)}`);
+  const text = response.result?.content?.[0]?.text ?? '';
+  assert.notEqual(response.result?.isError, true, `search_docs errored: ${text}`);
+  assert.match(text, /client\./);
 });
 
 test('execute runs code in the sandbox — guards the version pin', { skip: SKIP }, async () => {
-  const { result } = await server.request('tools/call', {
+  const response = await server.request('tools/call', {
     name: 'execute',
     arguments: {
       code: 'async function run(client) { return { ok: 2 + 2, hasClient: !!client } }',
       intent: 'plugin smoke test',
     },
   });
-  const text = result.content?.[0]?.text ?? '';
+
+  // Three distinct shapes mean "the sandbox is broken", and only the first sets
+  // isError. A host-scoped --allow-net crashes the Deno worker before it can
+  // answer, which surfaces as a JSON-RPC error with no result at all; asserting
+  // on isError alone would read that as success.
+  assert.ok(
+    !response.error,
+    `execute returned a JSON-RPC error — the Deno sandbox failed to boot, which is what a ` +
+      `host-scoped --allow-net does: ${JSON.stringify(response.error)}`,
+  );
+  const text = response.result?.content?.[0]?.text ?? '';
   assert.notEqual(
-    result.isError,
+    response.result?.isError,
     true,
     `execute failed — the pinned @linqapp/sdk-mcp version has a broken sandbox: ${text}`,
   );
-  assert.match(text, /"ok":\s*4/);
+  assert.match(text, /"ok":\s*4/, `execute returned no result payload: ${text || '<empty>'}`);
 });
 
 test('a missing key fails with an actionable message', { skip: SKIP }, async () => {
