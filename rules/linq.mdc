@@ -1,0 +1,47 @@
+---
+description: Linq messaging conventions — apply when writing code that sends or receives iMessage, RCS, or SMS through Linq, or that uses @linqapp/sdk, the linq CLI, or api.linqapp.com
+alwaysApply: false
+---
+
+# Linq conventions
+
+## Always
+
+- Phone numbers are E.164 (`+14155551234`). Convert them yourself; never ask the user to reformat.
+- Verify webhook signatures on every inbound webhook. `@linqapp/sdk` does **not** verify — its webhook helper only parses JSON. Write HMAC-SHA256 verification against the `x-webhook-signature` header yourself.
+- Track opt-outs. When an inbound message is STOP, UNSUBSCRIBE, OPTOUT, CANCEL, END, or QUIT, stop sending to that handle. There is no suppression endpoint, so the application must hold this state. Accounts are scored on sends after an opt-out.
+- Prefer letting the platform select a sending line over hardcoding a `from` — it fails over between lines.
+
+## Never
+
+- Never build one-way blasts, cold outreach, or notification-only flows. iMessage is a conversational channel; broadcast patterns get a line flagged by Apple and can shut the account down. If the user asks for a blast, propose a conversational design that does the same job.
+- Never write an API key to a file. Use `linq tokens show --copy`, or an environment variable.
+
+## Line tier — detect, never assume
+
+Free lines carry restrictions that paid dedicated lines do not. Determine which before applying either.
+
+`linq whoami --json` returns `tier` and `line`. Both are strings, and you need **both** — the CLI collapses Shared and Sandbox into `"Free"`, and Sandbox and Paid into `"Dedicated"`, so neither field alone identifies the account:
+
+| `tier` | `line` | Meaning | Restrictions |
+|---|---|---|---|
+| `"Paid"` | `"Dedicated"` | Paid dedicated line | None of the below |
+| `"Free"` | `"Shared"` | Free shared line | Inbound-first, plus a contact cap. See the `linq-quickstart` skill. |
+| `"Free"` | `"Dedicated"` | Sandbox | Inbound-first |
+
+Most paying customers have dedicated lines. Never present shared-line limits as universal facts.
+
+Note that `whoami`'s `apiKey` field is **masked** — it is a display preview, not a usable credential. To get the real token, use `linq tokens show --json`.
+
+## Errors worth recognizing
+
+- `403`, code `2008`, "Recipient not allowed" — the line is sandbox or shared and this recipient has not messaged it first. Add the contact and have them text the line. Do **not** retry with a different sender; the sender is not the problem.
+- `429` — read the `Retry-After` header. There are no `X-RateLimit-*` headers on this API.
+- Every error body carries a `doc_url`. Fetch it before guessing.
+
+## Tools
+
+If the Linq MCP server is available, prefer it over guessing at the API:
+
+- `search_docs` — find the right method and its parameters before writing code.
+- `execute` — run TypeScript against an authenticated client. Real calls send real messages; confirm with the user first.

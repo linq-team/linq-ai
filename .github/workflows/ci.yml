@@ -1,0 +1,27 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/validate.mjs
+      - run: node --test test/validate.test.mjs test/resolve-key.test.mjs
+
+  mcp-smoke:
+    # Runs the real MCP server through the real launcher. This is what catches a
+    # bad version pin — the plugin's own files look fine when the server is broken.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test --test-timeout=300000 test/mcp-smoke.test.mjs

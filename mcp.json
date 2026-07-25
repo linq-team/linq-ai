@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "linq": {
+      "command": "node",
+      "args": ["./scripts/linq-mcp.mjs"]
+    }
+  }
+}
