@@ -10,9 +10,11 @@ For developers with an existing Linq account. If the user has no account yet, us
 ## Step 1 — Authenticate and identify the line
 
 ```bash
-linq login --token <their-api-token>
+export LINQ_API_V3_API_KEY=<their-api-token>
 linq whoami --json
 ```
+
+Prefer the environment variable (or a per-command `--token <t>`) over `linq login`. On an account with more than one Linq Number, `linq login --token` opens an interactive number picker before it saves, so from an agent shell with no TTY it exits without writing anything and every later command fails as unauthenticated.
 
 Tokens come from https://dashboard.linqapp.com/api-tooling/.
 
@@ -23,8 +25,13 @@ Read `tier` and `line` from the JSON. Both are strings, and you need both — th
 | `"Paid"` | `"Dedicated"` | Paid dedicated line. No inbound-first rule, no contact cap. This is the common case here. |
 | `"Free"` | `"Shared"` | Shared line. Recipients must message the line first, and there is a contact cap. |
 | `"Free"` | `"Dedicated"` | Sandbox. Recipients must message the line first. |
+| *absent* | *absent* | Unknown. **Assume recipients must message the line first.** |
+
+Both keys are **omitted** when the local profile has no account label — a token-only login often returns just `{"apiKey": "..."}`. Check that `tier` is present before branching on it; never let an absent value fall through to the paid path, or you will cold-send from a line that cannot do it.
 
 If the user expected a dedicated line and `tier` is `"Free"`, they are on the wrong token.
+
+`whoami` reads local config and never calls the API, so it succeeds with a revoked or expired token too. Run `linq doctor` to confirm the credential actually works.
 
 The `apiKey` field in `whoami` output is **masked** — it is a display preview, not a credential. Use `linq tokens show --json` when you need the real token.
 
@@ -45,15 +52,15 @@ import Linq from '@linqapp/sdk';
 
 const client = new Linq({ apiKey: process.env.LINQ_API_V3_API_KEY });
 
-const chat = await client.chats.create({
+const sent = await client.messages.create({
   to: ['+14155551234'],
   message: { parts: [{ type: 'text', value: 'Hello from my app' }] },
 });
 
-console.log(chat.id, chat.message.id);
+console.log(sent.chat_id, sent.message.id);
 ```
 
-Prefer letting the platform pick the sending line over hardcoding `from` — it fails over between lines.
+Use `messages.create`, not `chats.create`. `messages.create` takes only `to` and `message` — the platform picks the sending line and fails over between lines, and the response tells you which one it used. `chats.create` **requires** a `from`, so reaching for it forces you to hardcode a line.
 
 ## Step 3 — Receive messages
 
@@ -76,33 +83,56 @@ linq webhooks events   # list available event types
 
 ## Step 4 — Verify webhook signatures
 
-The SDK does **not** verify signatures. Write it:
+The SDK verifies for you. Use it — do not hand-roll HMAC:
 
 ```typescript
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import express from 'express';
+import Linq from '@linqapp/sdk';
 
-export function verifyLinqWebhook(rawBody: string, signature: string, secret: string): boolean {
-  const expected = createHmac('sha256', secret).update(rawBody).digest('hex');
-  const a = Buffer.from(expected);
-  const b = Buffer.from(signature);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
+const client = new Linq({ apiKey: process.env.LINQ_API_V3_API_KEY });
+const app = express();
+
+app.post(
+  '/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res) => {
+    let event;
+    try {
+      event = client.webhooks.unwrap(req.body.toString('utf8'), {
+        headers: req.headers as Record<string, string>,
+        key: process.env.LINQ_WEBHOOK_SECRET,
+      });
+    } catch {
+      return res.status(400).send('invalid signature');
+    }
+
+    // event is verified and parsed
+    res.sendStatus(200);
+  },
+);
 ```
 
-Use the **raw** request body, not a re-serialized object. In Express that means `express.raw({ type: 'application/json' })` on the webhook route, and parsing JSON yourself after verifying.
+`unwrap` verifies and parses in one step, and throws when the signature does not check out.
 
-Never write a webhook handler without this. An unverified endpoint accepts forged events from anyone who learns the URL.
+Two things that break this:
+
+- **Use the raw body.** `express.raw({ type: 'application/json' })` on the route, and pass the exact bytes received. A re-serialized object will not match the signature.
+- **Do not write your own HMAC.** Linq signs with Standard Webhooks: the signed content is `{webhook-id}.{webhook-timestamp}.{body}`, base64-encoded, keyed on the base64-decoded secret with the `whsec_` prefix stripped. An HMAC of the body alone — the obvious hand-rolled version — rejects every genuine delivery, and the natural next move is to delete verification entirely.
+
+Never ship a webhook handler without this. An unverified endpoint accepts forged events from anyone who learns the URL.
 
 ## Step 5 — Handle opt-outs
 
 There is no suppression endpoint. The application owns this state.
 
-On every inbound message, check whether the trimmed, uppercased text is STOP, UNSUBSCRIBE, OPTOUT, CANCEL, END, or QUIT. If so, record the handle as opted out and never send to it again. Accounts are scored on sends after an opt-out, and it affects line reputation.
+On every inbound message, check whether the trimmed, uppercased text is STOP, UNSUBSCRIBE, OPTOUT, CANCEL, END, or QUIT. If so, record the handle as opted out and stop sending to it. `OPTIN` reverses it, so store a flag you can clear rather than a permanent tombstone.
+
+Cross-check `health_status.status` on the chat, which is present on every chat and reads `OPTED_OUT` — treat that as authoritative even if you missed the inbound keyword. Accounts are scored on sends after an opt-out, and it affects line reputation.
 
 ## Step 6 — Rate limits and retries
 
 - On `429`, read the `Retry-After` header and wait. There are no `X-RateLimit-*` headers to read proactively.
-- Every error body has `status`, `code`, `message`, and `doc_url`. Fetch the `doc_url` before guessing at a cause.
+- Error bodies are `{ success, error: { status, code, message, doc_url, retry_after? }, trace_id }` — the four fields are **nested under `error`**, not top level. Through the SDK that reads `err.error.error.code`. Fetch the `doc_url` before guessing at a cause.
 - `403` with code `2008` means the recipient has not messaged the line first. The sender is not the problem — do not retry with a different `from`.
 
 ## Step 7 — Verify it end to end

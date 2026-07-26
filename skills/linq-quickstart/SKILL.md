@@ -9,9 +9,11 @@ A guided first run: from nothing installed to a live iMessage conversation the u
 
 ## First: does the user already have a Linq account?
 
-Run `linq whoami --json`. If it succeeds, they are already set up — **stop and use the `linq-build` skill instead**; this skill is only for new signups.
+Run `linq whoami --json`. If it prints anything with an `apiKey`, they are already set up — **stop and use the `linq-build` skill instead**; this skill is only for new signups.
 
-If the command fails or the CLI is not installed, continue here.
+Note that `whoami` only reads local config and never calls the API, so it also exits 0 for a revoked or expired token. If you need to know the credential actually works, run `linq doctor` — but only once an account exists.
+
+If the command prints nothing useful, or the CLI is not installed, continue here.
 
 ## What Linq is
 
@@ -23,10 +25,10 @@ Requires Node 22 or later. If the user has no Node, point them at https://nodejs
 
 ```bash
 npm install -g @linqapp/cli@latest
-linq doctor
+linq --version
 ```
 
-`linq doctor` checks the installed version, local config, and API connectivity. If it reports a version problem, follow its output. Do not proceed until it passes.
+Confirm `linq --version` prints something. Do **not** run `linq doctor` here — it checks config, credentials, and API connectivity, none of which exist before signup, so it exits non-zero by design on a fresh install. Save it for Step 11, after there is an account to check.
 
 If `which linq` resolves under `~/.nvm/`, the binary is scoped to the active Node version and will vanish in a new terminal tab. Tell the user in one sentence and ask before running:
 
@@ -56,13 +58,18 @@ This creates the account, mints an API key, and assigns a Linq Number.
 
 ### If they turn out to have an account already
 
-If signup errors with "You already have a Linq account" or "You have a Linq account but do not have a Linq Number", they are an existing user — signup is for brand-new accounts only. Ask them to paste their API token (from https://dashboard.linqapp.com/api-tooling/), then:
+Two different outcomes, and they need different responses:
+
+- **"You already have a Linq account"** — note this exits **0**, so do not branch on exit status; read the output. They are an existing user. Ask them to paste their API token (from https://dashboard.linqapp.com/api-tooling/) and switch to the `linq-build` skill.
+- **"…do not have a Blue number. Contact your Linq Account Manager"** — this is a genuine failure and a token will **not** get past it. Stop and tell them to contact their account manager; do not keep trying.
+
+To carry the token forward, prefer an environment variable over `linq login`:
 
 ```bash
-linq login --token <pasted-api-token>
+export LINQ_API_V3_API_KEY=<pasted-api-token>
 ```
 
-Then switch to the `linq-build` skill.
+`linq login --token <t>` is unreliable from an agent shell: on any account with more than one Linq Number it opens an interactive number picker before saving, so with no TTY it exits without writing anything. Every command also accepts `--token <t>` directly if you would rather not export.
 
 ## Step 3 — Save the API key
 
@@ -195,7 +202,7 @@ Once confirmed, tell them Ctrl+C stops it, and mention the other two shapes:
 - `linq webhooks listen --forward-to http://localhost:3000/webhook` — same stream, also POSTs each event to a local URL while building.
 - `linq webhooks create --url https://your-server.com/webhook --all-events` — a durable subscription to a production endpoint.
 
-Production webhooks carry an HMAC signature in the `x-webhook-signature` header. Verifying it is covered in the `linq-build` skill.
+Production webhooks are signed. The current header is `webhook-signature` (Standard Webhooks, `v1,<base64>`); the older `X-Webhook-Signature` is still sent but deprecated. Do not verify by hand — `@linqapp/sdk` does it via `client.webhooks.unwrap()`. Covered in the `linq-build` skill.
 
 ## Step 11 — Managing API tokens
 
@@ -205,8 +212,9 @@ linq tokens show                          # print the token in local config
 linq tokens show --copy                   # copy it to the clipboard
 linq tokens create --name "<label>"       # mint a new one
 linq tokens regenerate <id>               # rotate (revokes the old secret immediately)
-linq tokens rename <id> "<new-label>"     # relabel
-linq tokens delete <id>                   # revoke
+# linq tokens delete <id> is interactive-only: it refuses to run in an agent
+# shell, and refuses to delete the token you are currently authenticated with.
+linq tokens rename <id> --name "<label>"  # relabel (--name is required)
 ```
 
 Create separate tokens per environment (`prod`, `staging`, `ci`) so one can be revoked without taking everything down.

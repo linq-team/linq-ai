@@ -8,8 +8,8 @@ alwaysApply: false
 ## Always
 
 - Phone numbers are E.164 (`+14155551234`). Convert them yourself; never ask the user to reformat.
-- Verify webhook signatures on every inbound webhook. `@linqapp/sdk` does **not** verify — its webhook helper only parses JSON. Write HMAC-SHA256 verification against the `x-webhook-signature` header yourself.
-- Track opt-outs. When an inbound message is STOP, UNSUBSCRIBE, OPTOUT, CANCEL, END, or QUIT, stop sending to that handle. There is no suppression endpoint, so the application must hold this state. Accounts are scored on sends after an opt-out.
+- Verify webhook signatures on every inbound webhook. Use `client.webhooks.unwrap(rawBody, { headers })` — the SDK implements Standard Webhooks and both verifies and parses. Do not hand-roll HMAC: the signed content is `{webhook-id}.{webhook-timestamp}.{body}`, base64, keyed on the base64-decoded secret, and a naive HMAC of the body alone rejects every real delivery.
+- Track opt-outs. When an inbound message is STOP, UNSUBSCRIBE, OPTOUT, CANCEL, END, or QUIT, stop sending to that handle. Opt-out is reversible — an `OPTIN` message clears it. There is no suppression endpoint, so the application must hold this state, and every chat also carries `health_status.status`, which reads `OPTED_OUT`. Accounts are scored on sends after an opt-out.
 - Prefer letting the platform select a sending line over hardcoding a `from` — it fails over between lines.
 
 ## Never
@@ -21,23 +21,26 @@ alwaysApply: false
 
 Free lines carry restrictions that paid dedicated lines do not. Determine which before applying either.
 
-`linq whoami --json` returns `tier` and `line`. Both are strings, and you need **both** — the CLI collapses Shared and Sandbox into `"Free"`, and Sandbox and Paid into `"Dedicated"`, so neither field alone identifies the account:
+`linq whoami --json` may return `tier` and `line`, both strings. You need **both** — the CLI collapses Shared and Sandbox into `"Free"`, and Sandbox and Paid into `"Dedicated"`, so neither field alone identifies the account:
 
 | `tier` | `line` | Meaning | Restrictions |
 |---|---|---|---|
 | `"Paid"` | `"Dedicated"` | Paid dedicated line | None of the below |
 | `"Free"` | `"Shared"` | Free shared line | Inbound-first, plus a contact cap. See the `linq-quickstart` skill. |
 | `"Free"` | `"Dedicated"` | Sandbox | Inbound-first |
+| *absent* | *absent* | Unknown — the local profile has no account label | **Assume the strictest case.** Treat it as inbound-first until proven otherwise. |
 
-Most paying customers have dedicated lines. Never present shared-line limits as universal facts.
+Both keys are **omitted entirely** when the local profile has no account label, which is common — a token-only login returns just `{"apiKey": "..."}`. Never treat an absent `tier` as `"Paid"`; branch on the value being present first, and if it is not, do not send to anyone who has not messaged the line.
+
+`whoami` reads the local config and never calls the API, so it succeeds even with a revoked or expired token. To confirm the credential actually works, use `linq doctor`.
 
 Note that `whoami`'s `apiKey` field is **masked** — it is a display preview, not a usable credential. To get the real token, use `linq tokens show --json`.
 
 ## Errors worth recognizing
 
-- `403`, code `2008`, "Recipient not allowed" — the line is sandbox or shared and this recipient has not messaged it first. Add the contact and have them text the line. Do **not** retry with a different sender; the sender is not the problem.
+- `403`, code `2008`, "Recipient not allowed" — the line is sandbox or shared and this recipient has not messaged it first. Have them text the line. Do **not** retry with a different sender; the sender is not the problem. `linq contacts add` is the remedy on a **Shared** line only — it hard-errors on Sandbox and Paid.
 - `429` — read the `Retry-After` header. There are no `X-RateLimit-*` headers on this API.
-- Every error body carries a `doc_url`. Fetch it before guessing.
+- Error bodies nest their detail: `{ success, error: { status, code, message, doc_url }, trace_id }`. Read `error.code`, not a top-level `code`. Fetch the `doc_url` before guessing.
 
 ## Tools
 
