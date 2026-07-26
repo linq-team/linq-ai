@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "linq": {
-      "command": "node",
-      "args": ["./scripts/linq-mcp.mjs"]
+      "command": "npx",
+      "args": ["-y", "@linqapp/sdk-mcp@0.31.0"]
     }
   }
 }

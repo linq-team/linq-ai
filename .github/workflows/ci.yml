@@ -13,11 +13,12 @@ jobs:
         with:
           node-version: '22'
       - run: node scripts/validate.mjs
-      - run: node --test test/validate.test.mjs test/resolve-key.test.mjs
+      - run: node --test test/validate.test.mjs
 
   mcp-smoke:
-    # Runs the real MCP server through the real launcher. This is what catches a
-    # bad version pin — the plugin's own files look fine when the server is broken.
+    # Runs the real MCP server using the exact command mcp.json ships. This is what
+    # catches a bad version pin — the plugin's own files look fine when the server
+    # underneath is broken.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
