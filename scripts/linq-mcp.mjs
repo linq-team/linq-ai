@@ -5,10 +5,10 @@ import { spawn } from 'node:child_process';
 import { homedir } from 'node:os';
 import { resolveApiKey, KEY_NAME } from './resolve-key.mjs';
 
-// Pinned deliberately. 0.29.0 regressed the code-execution sandbox: a Stainless
-// regeneration reverted the Deno fix, so `execute` fails on every call. 0.28.2 is
-// the last release with the fix. Raise this only with the smoke test passing.
-const SERVER_PACKAGE = '@linqapp/sdk-mcp@0.28.2';
+// Exact pin so every developer gets the same server. Bump it in a PR with
+// test/mcp-smoke.test.mjs green — that test runs the published package and is the
+// only thing here that catches a broken code-execution sandbox.
+const SERVER_PACKAGE = '@linqapp/sdk-mcp@0.30.0';
 
 const resolved = resolveApiKey({
   env: process.env,

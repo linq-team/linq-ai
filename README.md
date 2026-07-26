@@ -52,11 +52,11 @@ Why not plugin variables? Inside a plugin's `mcp.json`, `${VAR}` resolves agains
 
 ## The MCP version pin
 
-`scripts/linq-mcp.mjs` pins `@linqapp/sdk-mcp` to an exact version on purpose.
+`scripts/linq-mcp.mjs` pins `@linqapp/sdk-mcp` to an exact version so every developer runs the same server.
 
-Release 0.29.0 regressed the code-execution sandbox: a code regeneration reverted a fix, so the launcher passes a host-scoped `--allow-net` that excludes the worker's own unix socket, and `deno` is no longer pulled in as a dependency. Every `execute` call fails. The pinned release is the last one with the fix.
+`test/mcp-smoke.test.mjs` starts that published version through the real launcher and asserts `execute` actually returns a payload. **Bump the pin only with that test green.** Nothing else in this repo can catch a broken code-execution sandbox — the plugin's own files look perfectly healthy when the server underneath is not.
 
-`test/mcp-smoke.test.mjs` runs the real server through the real launcher and asserts `execute` actually returns a result. **Raise the pin only when that test passes against the new version.** Nothing else in this repo can catch that class of break.
+That is not hypothetical. Release 0.29.0 shipped with `execute` broken on every call: the sandbox was launched with a host-scoped `--allow-net` that excluded the worker's own unix socket, and `deno` had been dropped from the dependencies. The fix is now sealed as generator custom code, so a regeneration re-applies it instead of reverting it.
 
 ## Contributing
 
