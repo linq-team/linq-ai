@@ -113,6 +113,22 @@ test('rejects tenantType, which the CLI does not emit', () => {
   assert.ok(errors.some((e) => e.includes('tenantType')), errors.join('\n'));
 });
 
+test('rejects internal hostnames without naming one', () => {
+  const errors = check({
+    'rules/linq.mdc': GOOD_RULE + '\nCall prod.some-service.linqapp.com directly.\n',
+  });
+  assert.ok(errors.some((e) => e.includes('internal endpoint')), errors.join('\n'));
+});
+
+test('allows the public linqapp.com hosts', () => {
+  const errors = check({
+    'rules/linq.mdc':
+      GOOD_RULE + '\nSee https://docs.linqapp.com and https://api.linqapp.com and https://dashboard.linqapp.com\n',
+    '.cursor-plugin/plugin.json': GOOD_MANIFEST,
+  });
+  assert.deepEqual(errors, []);
+});
+
 test('rejects author fields outside the plugin schema', () => {
   const errors = check({
     '.cursor-plugin/plugin.json': JSON.stringify({

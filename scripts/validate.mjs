@@ -14,7 +14,10 @@ const DENYLIST = [
   [/>\s*~\/Downloads/i, 'redirect into ~/Downloads — never write secrets to disk'],
   [/2\.5\.0/, 'hardcoded CLI version — use `linq doctor` to assert the version'],
   [/\bTwilio\b/i, 'must not appear in user-facing content'],
-  [/prod\.zero-service\.linqapp\.com/i, 'non-public internal endpoint'],
+  // Environment-prefixed hosts are internal. Public surfaces are single-label
+  // (api / docs / dashboard.linqapp.com), so this matches none of them. Kept
+  // generic on purpose: naming a specific internal host here would publish it.
+  [/\b(?:prod|staging|dev|internal)\.[a-z0-9-]+\.linqapp\.com/i, 'non-public internal endpoint'],
   [/tenantType/, 'tenantType is not a field the CLI emits — use `line` (see rules/linq.mdc)'],
 ];
 
