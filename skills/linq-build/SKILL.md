@@ -10,11 +10,14 @@ For developers with an existing Linq account. If the user has no account yet, us
 ## Step 1 — Authenticate and identify the line
 
 ```bash
-export LINQ_API_V3_API_KEY=<their-api-token>
+npm install -g @linqapp/cli@latest
+linq login --token <their-api-token>
 linq whoami --json
 ```
 
-Prefer the environment variable (or a per-command `--token <t>`) over `linq login`. On an account with more than one Linq Number, `linq login --token` opens an interactive number picker before it saves, so from an agent shell with no TTY it exits without writing anything and every later command fails as unauthenticated.
+`linq login` is worth preferring over an environment variable: it writes `~/.linq/config.json`, which the Linq MCP server also reads, so one login authenticates both the CLI and the MCP tools for every project on the machine.
+
+Install `@latest` first. Older builds prompted for a default Linq Number before saving, so on a multi-number account `linq login --token` exited from an agent shell without writing anything. If you are stuck on an older CLI, `export LINQ_API_V3_API_KEY=<token>` or pass `--token <t>` per command instead.
 
 Tokens come from https://dashboard.linqapp.com/api-tooling/.
 

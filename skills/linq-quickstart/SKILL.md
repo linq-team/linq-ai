@@ -63,13 +63,15 @@ Two different outcomes, and they need different responses:
 - **"You already have a Linq account"** — note this exits **0**, so do not branch on exit status; read the output. They are an existing user. Ask them to paste their API token (from https://dashboard.linqapp.com/api-tooling/) and switch to the `linq-build` skill.
 - **"…do not have a Blue number. Contact your Linq Account Manager"** — this is a genuine failure and a token will **not** get past it. Stop and tell them to contact their account manager; do not keep trying.
 
-To carry the token forward, prefer an environment variable over `linq login`:
+To carry the token forward:
 
 ```bash
-export LINQ_API_V3_API_KEY=<pasted-api-token>
+linq login --token <pasted-api-token>
 ```
 
-`linq login --token <t>` is unreliable from an agent shell: on any account with more than one Linq Number it opens an interactive number picker before saving, so with no TTY it exits without writing anything. Every command also accepts `--token <t>` directly if you would rather not export.
+That writes `~/.linq/config.json`, which the Linq MCP server also reads — so one login covers the CLI and the MCP tools everywhere.
+
+This needs a current CLI (`npm install -g @linqapp/cli@latest`). Older builds prompted for a default Linq Number before saving, so on a multi-number account this exited from an agent shell without writing anything. On an older CLI, `export LINQ_API_V3_API_KEY=<token>` or pass `--token <t>` per command.
 
 ## Step 3 — Save the API key
 
