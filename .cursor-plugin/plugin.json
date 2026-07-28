@@ -20,5 +20,6 @@
     "cli",
     "webhooks",
     "mcp"
-  ]
+  ],
+  "logo": "assets/logo.png"
 }
