@@ -17,7 +17,18 @@ The two skills route between themselves — `linq-quickstart` checks for an exis
 
 ## Install
 
-Once listed in the marketplace, install `linq` from the **Customize** page in Cursor.
+### Claude Code
+
+```bash
+/plugin marketplace add linq-team/linq-ai
+/plugin install linq@linq-ai
+```
+
+Confirm the MCP server attached with `claude mcp list` — expect `plugin:linq:linq … ✔ Connected`. Note that `claude plugin details linq` reports `MCP servers (0)` even when it is working; `mcp list` is the reliable check.
+
+### Cursor
+
+Once listed in the marketplace, install `linq` from the **Customize** page.
 
 Until then, load it locally:
 
@@ -27,7 +38,7 @@ mkdir -p ~/.cursor/plugins/local
 rsync -a --exclude .git --exclude node_modules linq-ai/ ~/.cursor/plugins/local/linq/
 ```
 
-Then run **Developer: Reload Window** in Cursor.
+Then run **Developer: Reload Window**.
 
 Copy it — do not symlink. Cursor's docs suggest `ln -s` for faster iteration, but current builds reject a symlink whose target sits outside the plugins directory:
 
@@ -37,6 +48,12 @@ loadUserLocalPlugin linq rejected: symlink target ... is outside
 ```
 
 Re-run the `rsync` after each change, then reload the window.
+
+### Codex
+
+Point Codex at this repo as a plugin source. The manifest at `.codex-plugin/plugin.json` validates against Codex's plugin schema and declares the same two skills and MCP server.
+
+Codex and Claude Code load `skills/` and the MCP server, but not `rules/` — neither host has that component. The safety-critical conventions from the rule are restated inside both skills so nothing depends on it.
 
 ## Authentication
 

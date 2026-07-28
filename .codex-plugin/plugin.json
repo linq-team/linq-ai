@@ -1,6 +1,5 @@
 {
   "name": "linq",
-  "displayName": "Linq",
   "version": "0.1.0",
   "description": "Build iMessage, RCS, and SMS messaging on Linq. Conventions, guided quickstarts, and MCP access to the Linq API for the linq CLI and @linqapp/sdk.",
   "author": {
@@ -20,5 +19,26 @@
     "cli",
     "webhooks",
     "mcp"
-  ]
+  ],
+  "skills": "./skills/",
+  "mcpServers": {
+    "linq": {
+      "command": "npx",
+      "args": ["-y", "@linqapp/sdk-mcp@0.31.0"]
+    }
+  },
+  "interface": {
+    "displayName": "Linq",
+    "shortDescription": "Build iMessage, RCS, and SMS on Linq",
+    "longDescription": "Conventions, guided quickstarts, and MCP access to the Linq API for the linq CLI and @linqapp/sdk. Covers sending iMessage, RCS, and SMS with automatic fallback, webhook signature verification, opt-out tracking, and the line-tier rules that decide who you are allowed to message.",
+    "developerName": "Linq",
+    "category": "APIs",
+    "capabilities": ["Read", "Write"],
+    "websiteURL": "https://linqapp.com",
+    "defaultPrompt": [
+      "Send my first iMessage with Linq",
+      "Verify a Linq webhook signature in my server",
+      "Why am I getting a 403 with code 2008?"
+    ]
+  }
 }

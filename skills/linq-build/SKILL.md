@@ -7,6 +7,14 @@ description: Build an application on an existing Linq account — authenticate, 
 
 For developers with an existing Linq account. If the user has no account yet, use the `linq-quickstart` skill instead.
 
+## Ground rules
+
+Three things hold regardless of what you are building. Do not skip them.
+
+- **Conversational only.** Never build one-way blasts, cold outreach, or notification-only flows. iMessage is a peer-to-peer channel, and broadcast patterns get a line flagged by Apple and can shut the account down. If the user asks for a blast, propose a conversational design that does the same job.
+- **Never write an API key to a file.** Use `linq tokens show --copy`, an environment variable, or `linq login`.
+- **Phone numbers are E.164** (`+14155551234`). Convert them yourself; never ask the user to reformat.
+
 ## Step 1 — Authenticate and identify the line
 
 ```bash
@@ -136,7 +144,7 @@ Cross-check `health_status.status` on the chat, which is present on every chat a
 
 - On `429`, read the `Retry-After` header and wait. There are no `X-RateLimit-*` headers to read proactively.
 - Error bodies are `{ success, error: { status, code, message, doc_url, retry_after? }, trace_id }` — the four fields are **nested under `error`**, not top level. Through the SDK that reads `err.error.error.code`. Fetch the `doc_url` before guessing at a cause.
-- `403` with code `2008` means the recipient has not messaged the line first. The sender is not the problem — do not retry with a different `from`.
+- `403` with code `2008` means the recipient has not messaged the line first. The sender is not the problem — do not retry with a different `from`. `linq contacts add` is the remedy on a **Shared** line only; it hard-errors on Sandbox and Paid, where the recipient simply has to text the line first.
 
 ## Step 7 — Verify it end to end
 

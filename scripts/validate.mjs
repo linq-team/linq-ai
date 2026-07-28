@@ -129,7 +129,73 @@ function checkManifests(root, errors) {
   if (distinct.size > 1) {
     errors.push(`manifests disagree on plugin name: ${names.map(([h, n]) => `${h}=${n}`).join(', ')}`);
   }
+
+  // Each host validates differently. These three checks encode the ways the
+  // manifests must DIVERGE — copying one over another is what broke them before.
+  const claude = manifests['.claude-plugin'];
+  if (claude && !claude.mcpServers) {
+    errors.push(
+      '.claude-plugin/plugin.json: needs "mcpServers" — Claude Code reads a manifest path or a root ' +
+        '.mcp.json, and never the dot-less mcp.json that Cursor requires, so the server is silently absent',
+    );
+  }
+
+  const codex = manifests['.codex-plugin'];
+  if (codex) {
+    // Mirrors openai/codex validate_plugin.py, which rejects unknown top-level keys.
+    if (codex.displayName) {
+      errors.push('.codex-plugin/plugin.json: "displayName" is rejected by Codex — it belongs under "interface"');
+    }
+    const iface = codex.interface;
+    if (!iface || typeof iface !== 'object') {
+      errors.push('.codex-plugin/plugin.json: needs an "interface" object — Codex validation fails without it');
+    } else {
+      for (const field of ['displayName', 'shortDescription', 'longDescription', 'developerName', 'category']) {
+        if (!iface[field]) errors.push(`.codex-plugin/plugin.json: interface.${field} is required and non-empty`);
+      }
+      if (!Array.isArray(iface.capabilities) || iface.capabilities.some((c) => typeof c !== 'string')) {
+        errors.push('.codex-plugin/plugin.json: interface.capabilities must be an array of strings');
+      }
+      const prompts = iface.defaultPrompt ?? iface.default_prompt;
+      if (!Array.isArray(prompts) || prompts.length === 0) {
+        errors.push('.codex-plugin/plugin.json: interface.defaultPrompt is required');
+      } else if (prompts.length > 3 || prompts.some((p) => typeof p !== 'string' || p.length > 128)) {
+        errors.push('.codex-plugin/plugin.json: interface.defaultPrompt allows at most 3 entries of <=128 chars');
+      }
+      if (iface.brandColor && !/^#[0-9A-F]{6}$/.test(iface.brandColor)) {
+        errors.push('.codex-plugin/plugin.json: interface.brandColor must be #RRGGBB');
+      }
+    }
+  }
   return manifests;
+}
+
+// The Codex manifest inlines its MCP config while Cursor and Claude point at
+// mcp.json. Assert they agree so the version pin cannot drift between hosts.
+function checkMcpPinAgreement(root, errors, manifests) {
+  const file = join(root, 'mcp.json');
+  const inline = manifests['.codex-plugin']?.mcpServers;
+  if (!existsSync(file) || !inline || typeof inline !== 'object') return;
+  let shared;
+  try {
+    shared = JSON.parse(readFileSync(file, 'utf8')).mcpServers;
+  } catch {
+    return;
+  }
+  for (const [name, server] of Object.entries(shared ?? {})) {
+    const codexServer = inline[name];
+    if (!codexServer) {
+      errors.push(`.codex-plugin/plugin.json: mcpServers is missing "${name}", which mcp.json defines`);
+      continue;
+    }
+    const a = JSON.stringify([server.command, server.args ?? []]);
+    const b = JSON.stringify([codexServer.command, codexServer.args ?? []]);
+    if (a !== b) {
+      errors.push(
+        `.codex-plugin/plugin.json: server "${name}" has drifted from mcp.json — ${b} vs ${a}`,
+      );
+    }
+  }
 }
 
 function checkMcp(root, errors, manifests) {
@@ -183,6 +249,7 @@ export function validate(root) {
   checkSkills(root, errors, contentFiles);
   const manifests = checkManifests(root, errors);
   checkMcp(root, errors, manifests);
+  checkMcpPinAgreement(root, errors, manifests);
 
   const readme = join(root, 'README.md');
   if (existsSync(readme)) contentFiles.push([readme, readFileSync(readme, 'utf8')]);

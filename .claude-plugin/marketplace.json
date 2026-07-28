@@ -1,0 +1,17 @@
+{
+  "name": "linq-ai",
+  "owner": {
+    "name": "Linq",
+    "email": "contact@linqapp.com"
+  },
+  "metadata": {
+    "description": "Linq for AI coding agents — rules, skills, and MCP access for building iMessage, RCS, and SMS on Linq."
+  },
+  "plugins": [
+    {
+      "name": "linq",
+      "source": "./",
+      "description": "Build iMessage, RCS, and SMS messaging on Linq. Conventions, guided quickstarts, and MCP access to the Linq API for the linq CLI and @linqapp/sdk."
+    }
+  ]
+}

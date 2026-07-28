@@ -1,6 +1,5 @@
 {
   "name": "linq",
-  "displayName": "Linq",
   "version": "0.1.0",
   "description": "Build iMessage, RCS, and SMS messaging on Linq. Conventions, guided quickstarts, and MCP access to the Linq API for the linq CLI and @linqapp/sdk.",
   "author": {
@@ -20,5 +19,6 @@
     "cli",
     "webhooks",
     "mcp"
-  ]
+  ],
+  "mcpServers": "./mcp.json"
 }
