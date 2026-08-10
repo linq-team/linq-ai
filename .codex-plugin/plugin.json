@@ -24,7 +24,7 @@
   "mcpServers": {
     "linq": {
       "command": "npx",
-      "args": ["-y", "@linqapp/sdk-mcp@0.31.0"]
+      "args": ["-y", "@linqapp/sdk-mcp@latest"]
     }
   },
   "interface": {

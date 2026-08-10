@@ -1,9 +1,11 @@
 // Exercises the real MCP server using the exact command mcp.json ships.
 //
-// This is the regression guard for the version pin. @linqapp/sdk-mcp 0.29.0 shipped a
-// code-execution sandbox that failed on every call, because a code regeneration
-// reverted the Deno fix. Nothing about the plugin's own files catches that — only
-// running the server does. Skip with LINQ_SKIP_MCP_SMOKE=1 when offline.
+// The plugin tracks @latest, so a bad publish reaches users the moment it lands.
+// That makes this the canary: @linqapp/sdk-mcp 0.29.0 shipped a code-execution
+// sandbox that failed on every call, because a code regeneration reverted the Deno
+// fix. Nothing about the plugin's own files catches that — only running the server
+// does. A red run here means the newest published server is broken; investigate
+// before assuming this repo caused it. Skip with LINQ_SKIP_MCP_SMOKE=1 when offline.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -91,13 +93,13 @@ after(() => {
   server?.child.kill();
 });
 
-test('mcp.json pins an exact server version', { skip: SKIP }, () => {
-  const pinned = (serverConfig.args ?? []).find((a) => a.includes('@linqapp/sdk-mcp'));
-  assert.ok(pinned, 'mcp.json should launch @linqapp/sdk-mcp');
+test('mcp.json tracks the latest server release', { skip: SKIP }, () => {
+  const spec = (serverConfig.args ?? []).find((a) => a.includes('@linqapp/sdk-mcp'));
+  assert.ok(spec, 'mcp.json should launch @linqapp/sdk-mcp');
   assert.match(
-    pinned,
-    /@linqapp\/sdk-mcp@\d+\.\d+\.\d+$/,
-    `pin an exact version, not a range or tag — got "${pinned}"`,
+    spec,
+    /@linqapp\/sdk-mcp@latest$/,
+    `track @latest so users get fixes without a plugin release — got "${spec}"`,
   );
 });
 
@@ -118,7 +120,7 @@ test('search_docs returns documentation', { skip: SKIP }, async () => {
   assert.match(text, /client\./);
 });
 
-test('execute runs code in the sandbox — guards the version pin', { skip: SKIP }, async () => {
+test('execute runs code in the sandbox — guards the latest release', { skip: SKIP }, async () => {
   const response = await server.request('tools/call', {
     name: 'execute',
     arguments: {
@@ -140,7 +142,7 @@ test('execute runs code in the sandbox — guards the version pin', { skip: SKIP
   assert.notEqual(
     response.result?.isError,
     true,
-    `execute failed — the pinned @linqapp/sdk-mcp version has a broken sandbox: ${text}`,
+    `execute failed — the latest published @linqapp/sdk-mcp has a broken sandbox: ${text}`,
   );
   assert.match(text, /"ok":\s*4/, `execute returned no result payload: ${text || '<empty>'}`);
 });
