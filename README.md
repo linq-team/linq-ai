@@ -65,13 +65,30 @@ The MCP server reads `$LINQ_API_V3_API_KEY` when it is set, and otherwise falls 
 
 Plugin `variables` are not an option here — only team admins can set their values from the dashboard, which leaves solo developers with no way to supply a secret.
 
-## The MCP version pin
+## The MCP server version
 
-`mcp.json` pins `@linqapp/sdk-mcp` to an exact version so every developer runs the same server.
+`mcp.json` launches `@linqapp/sdk-mcp@latest`, so every developer picks up server
+fixes and new endpoints without waiting on a plugin release. It previously pinned an
+exact version; that pin meant users sat on an old server — 0.31.0 while 0.35.0 was
+current — and missed API surface that had already shipped.
 
-`test/mcp-smoke.test.mjs` reads that command straight out of `mcp.json`, starts it, and asserts `execute` actually returns a payload — so the test and the shipped config cannot drift apart. **Bump the pin only with that test green.** Nothing else in this repo can catch a broken code-execution sandbox — the plugin's own files look perfectly healthy when the server underneath is not.
+The tradeoff is that a bad publish reaches users immediately, with no manual bump
+standing between them and it. `test/mcp-smoke.test.mjs` is what covers that: it reads
+the command straight out of `mcp.json`, starts the real server, and asserts `execute`
+returns a payload — so the test and the shipped config cannot drift apart. Nothing
+else in this repo can catch a broken code-execution sandbox; the plugin's own files
+look perfectly healthy when the server underneath is not.
 
-That is not hypothetical. Release 0.29.0 shipped with `execute` broken on every call: the sandbox was launched with a host-scoped `--allow-net` that excluded the worker's own unix socket, and `deno` had been dropped from the dependencies. The fix is now sealed as generator custom code, so a regeneration re-applies it instead of reverting it.
+**A red smoke test now means the newest published server is broken, not that this
+repo changed.** Check linq-node before looking here. If a release does ship broken,
+the mitigation is to pin `mcp.json` back to the last known-good version until it is
+fixed — that is a deliberate, temporary step, not the default.
+
+That failure is not hypothetical. Release 0.29.0 shipped with `execute` broken on
+every call: the sandbox was launched with a host-scoped `--allow-net` that excluded
+the worker's own unix socket, and `deno` had been dropped from the dependencies. The
+fix is sealed as generator custom code, so a regeneration re-applies it instead of
+reverting it.
 
 ## Contributing
 
