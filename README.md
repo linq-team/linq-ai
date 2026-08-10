@@ -1,6 +1,6 @@
 # Linq for AI coding agents
 
-Rules, skills, and MCP access for building iMessage, RCS, and SMS on [Linq](https://linqapp.com). Install it once and your agent knows how Linq works — no pasted onboarding prompt.
+Rules, skills, commands, and MCP access for building iMessage, RCS, and SMS on [Linq](https://linqapp.com). Install it once and your agent knows how Linq works — no pasted onboarding prompt.
 
 Works in Cursor, Claude Code, and Codex from the same repo.
 
@@ -8,9 +8,10 @@ Works in Cursor, Claude Code, and Codex from the same repo.
 
 | Component | What it does |
 |---|---|
-| `linq` rule | Universal conventions — E.164, webhook signature verification, opt-out tracking, line-tier detection, and the errors worth recognizing. Applied intelligently, so it only loads on Linq-related work. |
+| `linq` rule | Universal conventions — E.164, webhook signature verification, opt-out handling, chat health and line reputation, line-tier detection, and the errors worth recognizing. Applied intelligently, so it only loads on Linq-related work. |
 | `linq-quickstart` skill | New account from scratch: install the CLI, sign up, provision a Linq Number, add a contact, send a first iMessage with effects, reactions, and live webhooks. |
 | `linq-build` skill | Existing account: authenticate, send from code with `@linqapp/sdk`, receive webhooks with signature verification, handle opt-outs and rate limits. |
+| `/linq-audit` command | Audits an existing integration against Linq's published best practices — opt-out compliance, line selection, contact cards, health and reputation gating, volume and ramp. Read-only; reports a table and a ranked action list. |
 | MCP server | `search_docs` to find the right method and parameters, `execute` to run TypeScript against an authenticated client. |
 
 The two skills route between themselves — `linq-quickstart` checks for an existing account first and hands off if it finds one.
@@ -28,32 +29,26 @@ Confirm the MCP server attached with `claude mcp list` — expect `plugin:linq:l
 
 ### Cursor
 
-Once listed in the marketplace, install `linq` from the **Customize** page.
+Cursor installs plugins from marketplaces, and any Git repository can be one. Add this repository as a marketplace from the **Customize** page, then install `linq` from it:
 
-Until then, load it locally:
-
-```bash
-git clone https://github.com/linq-team/linq-ai
-mkdir -p ~/.cursor/plugins/local
-rsync -a --exclude .git --exclude node_modules linq-ai/ ~/.cursor/plugins/local/linq/
+```
+https://github.com/linq-team/linq-ai
 ```
 
-Then run **Developer: Reload Window**.
+See [Cursor's plugin documentation](https://cursor.com/docs/plugins) for the current install flow.
 
-Copy it — do not symlink. Cursor's docs suggest `ln -s` for faster iteration, but current builds reject a symlink whose target sits outside the plugins directory:
+For local iteration on the plugin itself, `~/.cursor/plugins/local` still works. Copy the directory rather than symlinking it — current builds reject a symlink whose target sits outside the plugins directory:
 
 ```
 loadUserLocalPlugin linq rejected: symlink target ... is outside
 /Users/you/.cursor/plugins/local
 ```
 
-Re-run the `rsync` after each change, then reload the window.
-
 ### Codex
 
 Point Codex at this repo as a plugin source. The manifest at `.codex-plugin/plugin.json` validates against Codex's plugin schema and declares the same two skills and MCP server.
 
-Codex and Claude Code load `skills/` and the MCP server, but not `rules/` — neither host has that component. The safety-critical conventions from the rule are restated inside both skills so nothing depends on it.
+Codex and Claude Code load `skills/` and the MCP server, but not `rules/` — neither host has that component. The safety-critical conventions from the rule are restated inside both skills so nothing depends on it. Claude Code also picks up `commands/`; Codex does not.
 
 ## Authentication
 

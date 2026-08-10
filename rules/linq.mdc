@@ -9,8 +9,10 @@ alwaysApply: false
 
 - Phone numbers are E.164 (`+14155551234`). Convert them yourself; never ask the user to reformat.
 - Verify webhook signatures on every inbound webhook. Use `client.webhooks.unwrap(rawBody, { headers })` — the SDK implements Standard Webhooks and both verifies and parses. Do not hand-roll HMAC: the signed content is `{webhook-id}.{webhook-timestamp}.{body}`, base64, keyed on the base64-decoded secret, and a naive HMAC of the body alone rejects every real delivery.
-- Track opt-outs. When an inbound message is STOP, UNSUBSCRIBE, OPTOUT, CANCEL, END, or QUIT, stop sending to that handle. Opt-out is reversible — an `OPTIN` message clears it. There is no suppression endpoint, so the application must hold this state, and every chat also carries `health_status.status`, which reads `OPTED_OUT`. Accounts are scored on sends after an opt-out.
+- Honor opt-outs, and let Linq enforce them. While a recipient is opted out, every send to them is rejected with `403`, code `2024`, before the message is queued — across every chat and every line on the account. Gate on the chat's `health_status.status` reading `OPTED_OUT` rather than tracking opt-in state yourself: it clears the moment they reply again with anything that is not itself a stop keyword, so there is no opt-in keyword to teach. One "we have stopped — reply any time to resume" note can still go out with `override_optout: true` set on that single request; it does not lift the block, and each use is recorded.
+- Catch conversational stop requests yourself. Linq blocks the exact keywords only — `STOP`, `UNSUBSCRIBE`, `OPTOUT`, `CANCEL`, `END`, `QUIT` as the entire message, matched case-sensitively, plus `OPT OUT` in any casing with or without a space or hyphen. "please stop messaging me" is not blocked, and honoring it is the application's job.
 - Prefer letting the platform select a sending line over hardcoding a `from` — it fails over between lines.
+- Read the signals before sending at volume. Every chat carries `health_status`; every line carries `reputation` on `GET /v3/phone_numbers`. Slow down on `AT_RISK`, pause outbound on `CRITICAL`, and subscribe to `phone_number.status_updated` instead of polling. Never move recipients off an at-risk line to escape the status — improve engagement and let the line recover.
 
 ## Never
 
@@ -38,6 +40,7 @@ Note that `whoami`'s `apiKey` field is **masked** — it is a display preview, n
 
 ## Errors worth recognizing
 
+- `403`, code `2024`, "Recipient asked you to stop messaging them" — this recipient is opted out. Nothing was queued. Do not retry, and do not try another line; the block covers every line on the account. See the opt-out rule above for the one exception.
 - `403`, code `2008`, "Recipient not allowed" — the line is sandbox or shared and this recipient has not messaged it first. Have them text the line. Do **not** retry with a different sender; the sender is not the problem. `linq contacts add` is the remedy on a **Shared** line only — it hard-errors on Sandbox and Paid.
 - `429` — read the `Retry-After` header. There are no `X-RateLimit-*` headers on this API.
 - Error bodies nest their detail: `{ success, error: { status, code, message, doc_url }, trace_id }`. Read `error.code`, not a top-level `code`. Fetch the `doc_url` before guessing.
