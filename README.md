@@ -11,10 +11,17 @@ Works in Cursor, Claude Code, and Codex from the same repo.
 | `linq` rule | Universal conventions — E.164, webhook signature verification, opt-out handling, chat health and line reputation, line-tier detection, and the errors worth recognizing. Applied intelligently, so it only loads on Linq-related work. |
 | `linq-quickstart` skill | New account from scratch: install the CLI, sign up, provision a Linq Number, add a contact, send a first iMessage with effects, reactions, and live webhooks. |
 | `linq-build` skill | Existing account: authenticate, send from code with `@linqapp/sdk`, receive webhooks with signature verification, handle opt-outs and rate limits. |
-| `/linq-audit` command | Audits an existing integration against Linq's published best practices — opt-out compliance, line selection, contact cards, health and reputation gating, volume and ramp. Read-only; reports a table and a ranked action list. |
+| `linq-best-practices` skill | The canonical integration checklist — opt-out, line selection and load balancing, onboarding, contact cards, blocked handles, health gating, engagement, volume and ramp. The other surfaces read their check wording from here rather than repeating it. |
+| `linq-reputation` skill | Diagnoses why a specific line is `AT_RISK`, `CRITICAL`, or flagged: runs Linq's reputation audit, maps each driver to the checks it implicates, and proposes the code fix. Needs the MCP server. Proposes, never applies. |
+| `/linq-audit` command | Sweeps an integration against the whole checklist. No credentials needed. Read-only; reports a table and a ranked action list. |
 | MCP server | `search_docs` to find the right method and parameters, `execute` to run TypeScript against an authenticated client. |
 
-The two skills route between themselves — `linq-quickstart` checks for an existing account first and hands off if it finds one.
+The skills route between themselves — `linq-quickstart` checks for an existing
+account first and hands off to `linq-build` if it finds one. `/linq-audit` sweeps
+everything without credentials and points at `linq-reputation` when it finds a gap
+in a section that drives reputation; `linq-reputation` starts from a line's actual
+audit and works backward to the responsible code. Both read their check wording
+from `linq-best-practices`, so the compliance language exists in one place.
 
 ## Install
 
@@ -46,7 +53,7 @@ loadUserLocalPlugin linq rejected: symlink target ... is outside
 
 ### Codex
 
-Point Codex at this repo as a plugin source. The manifest at `.codex-plugin/plugin.json` validates against Codex's plugin schema and declares the same two skills and MCP server.
+Point Codex at this repo as a plugin source. The manifest at `.codex-plugin/plugin.json` validates against Codex's plugin schema and declares the same skills and MCP server.
 
 Codex and Claude Code load `skills/` and the MCP server, but not `rules/` — neither host has that component. The safety-critical conventions from the rule are restated inside both skills so nothing depends on it. Claude Code also picks up `commands/`; Codex does not.
 
