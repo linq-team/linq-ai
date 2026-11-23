@@ -1,6 +1,6 @@
 ---
 name: linq-reputation
-description: Diagnose why a Linq line's reputation is AT_RISK, CRITICAL, or flagged, and find the code responsible. Runs a reputation audit through the Linq MCP server, maps each driver to the integration checks it implicates, and proposes fixes. Use when someone asks to audit or fix line reputation, why a line got flagged, or why messages stopped being delivered.
+description: Diagnose why a Linq line is Needs Attention or Delivery Limited (NEEDS_ATTENTION / DELIVERY_LIMITED, legacy AT_RISK / CRITICAL), or flagged, and find the code responsible. Runs a reputation audit through the Linq MCP server, maps each driver to the integration checks it implicates, and proposes fixes. Use when someone asks to audit or fix line reputation, why a line got flagged, or why messages stopped being delivered.
 ---
 
 # Diagnose and fix line reputation
@@ -33,12 +33,27 @@ One cheap call, no audit needed:
 GET /v3/phone_numbers   →   client.phoneNumbers.list()
 ```
 
-Each line carries `reputation.status` (`HEALTHY` / `AT_RISK` / `CRITICAL` /
-`OPTED_OUT`) and a `doc_url`.
+Each line carries `reputation.state`, `reputation.reason_codes` (what is behind
+the state, in the same vocabulary as the audit's driver keys) and a `doc_url`.
+Rank on `state`, and show each line's `reason_codes` beside it:
+
+- `DELIVERY_LIMITED` (Delivery Limited): outbound messages are not being
+  delivered. Worst.
+- `NEEDS_ATTENTION` (Needs Attention): a sustained pattern that needs a change in
+  how the line is used.
+- `WATCH` (Watch): a recent change that usually settles on its own. No action
+  needed, so do not offer it for audit unless the user names it.
+- `HEALTHY` (Healthy): in good standing.
+
+`reputation.status` is the legacy field derived from `state` (`NEEDS_ATTENTION`
+reports `AT_RISK`, `DELIVERY_LIMITED` reports `CRITICAL`, `HEALTHY` and `WATCH`
+report `HEALTHY`). If the user says a line is "at risk" or "critical", map it to
+the state name when you report.
 
 - If the user named a line, audit that one.
-- If they did not, show the unhealthy lines ranked worst-first and ask which to
-  audit. Do not audit the whole pool unprompted — each audit is a separate job.
+- If they did not, show the Needs Attention and Delivery Limited lines ranked
+  worst-first and ask which to audit. Do not audit the whole pool unprompted.
+  Each audit is a separate job.
 
 ## Step 2 — Run the audit
 
@@ -56,9 +71,11 @@ Handle these, they are normal:
 - **`429`** — cooldown since the last audit. `Retry-After` carries the wait. Tell
   the user when they can re-run; do not spin.
 - **`404` on the audit endpoints, or no such SDK method** — this API may not be
-  available on the caller's SDK version. Fall back: report `reputation.status`
-  from Step 1, note that driver-level diagnosis is unavailable, and run the full
-  `linq-best-practices` checklist instead of a targeted one. Say that is what you
+  available on the caller's SDK version. Fall back: report `reputation.state`
+  and `reputation.reason_codes` from Step 1, note that the audit's per-chat
+  evidence is unavailable, and run the full `linq-best-practices` checklist
+  instead of a targeted one. Use the `reason_codes` with the Step 3 table to say
+  which sections matter most. Say that is what you
   are doing.
 
 Each `execute` call is capped near 5 minutes total with 30 seconds per request. If
@@ -101,7 +118,7 @@ driver to unrelated code because it was the closest match.
 
 ## Step 5 — Report
 
-1. **What the line's reputation is** — status, and each driver with its `summary`
+1. **What the line's state is**: the state name, and each driver with its `summary`
    and `metric`.
 2. **What the code does** — table of Driver | Check | Status (pass / gap / unknown)
    | Where (`file:line`).

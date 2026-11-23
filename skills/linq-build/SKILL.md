@@ -164,11 +164,17 @@ That flag applies to the single request it is set on, does not lift the block, a
 Two signals, different scopes. Read both before sending at volume.
 
 - **Chat health** — `health_status` on every chat: `HEALTHY`, `AT_RISK`, `CRITICAL`, `OPTED_OUT`. Per recipient.
-- **Line reputation** — `reputation` on every entry from `GET /v3/phone_numbers`: `HEALTHY`, `AT_RISK`, `CRITICAL`. Per line, rolled up from the conversations on it. No `OPTED_OUT` — that is a recipient-level state.
+- **Line state**: `reputation.state` on every entry from `GET /v3/phone_numbers`. Per line, rolled up from the conversations on it and the line's overall activity. The dashboard shows each value by name:
+  - `HEALTHY` (Healthy): in good standing. Send normally.
+  - `WATCH` (Watch): a recent change in activity that usually settles on its own. No action needed; keep sending normally.
+  - `NEEDS_ATTENTION` (Needs Attention): a sustained pattern that needs a change in how the line is used. Slow the line's pace, avoid opening many new conversations at once, and fix the unhealthy chats on it.
+  - `DELIVERY_LIMITED` (Delivery Limited): outbound messages from the line are not being delivered. Pause outbound on the line until it returns to `HEALTHY`.
 
-Slow the pace on `AT_RISK` and pause outbound on `CRITICAL`, then let engagement bring it back. Subscribe to `phone_number.status_updated` to react when a line changes rather than polling `GET /v3/phone_numbers` before every send.
+Gate on `state`. `reputation.status` (`HEALTHY` / `AT_RISK` / `CRITICAL`) is the legacy field, derived from `state`: `HEALTHY` and `WATCH` report `HEALTHY`, `NEEDS_ATTENTION` reports `AT_RISK`, and `DELIVERY_LIMITED` reports `CRITICAL`. Read it only in code that has not moved to `state` yet, and show partners the state names above.
 
-Onboard new users onto `HEALTHY` lines. Do **not** migrate existing recipients off an `AT_RISK` line to escape the status — it moves the traffic that caused it and takes the problem along.
+Subscribe to `phone_number.status_updated` to react when a line changes rather than polling `GET /v3/phone_numbers` before every send. Read `previous_state` and `new_state` from the event. Both are optional, so when they are missing fall back to the legacy `previous_reputation` / `new_reputation`, which every event carries: `HEALTHY` means no action, `AT_RISK` maps to Needs Attention, and `CRITICAL` maps to Delivery Limited. The event also fires when only the state changes, so the two legacy values can be equal.
+
+Onboard new users onto `HEALTHY` lines. Keep existing recipients on a Needs Attention line rather than migrating them to escape the state. Migration moves the traffic that caused it and takes the problem along.
 
 ## Step 7 — Rate limits and retries
 
