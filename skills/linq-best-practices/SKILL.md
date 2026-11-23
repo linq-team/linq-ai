@@ -88,13 +88,19 @@ you to stop, blocking is you refusing traffic from a handle.
 
 ## Health & reputation gating
 
-- Before sending, check the chat's `health_status` and the line's `reputation` from
-  `GET /v3/phone_numbers`, and slow or pause on `AT_RISK` / `CRITICAL`.
-- Handle the `phone_number.status_updated` webhook so the code reacts when a line's
-  reputation changes, rather than discovering it on the next send.
-- Onboard new users onto `HEALTHY` lines. Do **not** migrate users off an `AT_RISK`
-  line to escape the status — improve engagement and let the line recover. Migration
-  spreads the problem and resets nothing.
+- Before sending, check the chat's `health_status` and the line's `reputation.state`
+  from `GET /v3/phone_numbers`. `WATCH` needs no action. Slow down on
+  `NEEDS_ATTENTION` and pause outbound on `DELIVERY_LIMITED`.
+- Gate lines on `state`. Code that gates a line on `reputation.status`
+  (`AT_RISK` / `CRITICAL`) is reading the legacy field and is a finding; the mapping
+  is `HEALTHY` and `WATCH` to `HEALTHY`, `NEEDS_ATTENTION` to `AT_RISK`,
+  `DELIVERY_LIMITED` to `CRITICAL`.
+- Handle the `phone_number.status_updated` webhook and read `previous_state` /
+  `new_state`, so the code reacts when a line's state changes rather than
+  discovering it on the next send.
+- Onboard new users onto `HEALTHY` lines. Keep users on a Needs Attention line rather
+  than migrating them to escape the state. Improve engagement and let the line
+  recover. Migration spreads the problem and resets nothing.
 
 ## Engagement & cadence
 

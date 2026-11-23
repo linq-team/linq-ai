@@ -12,7 +12,7 @@ Works in Cursor, Claude Code, and Codex from the same repo.
 | `linq-quickstart` skill | New account from scratch: install the CLI, sign up, provision a Linq Number, add a contact, send a first iMessage with effects, reactions, and live webhooks. |
 | `linq-build` skill | Existing account: authenticate, send from code with `@linqapp/sdk`, receive webhooks with signature verification, handle opt-outs and rate limits. |
 | `linq-best-practices` skill | The canonical integration checklist — opt-out, line selection and load balancing, onboarding, contact cards, blocked handles, health gating, engagement, volume and ramp. The other surfaces read their check wording from here rather than repeating it. |
-| `linq-reputation` skill | Diagnoses why a specific line is `AT_RISK`, `CRITICAL`, or flagged: runs Linq's reputation audit, maps each driver to the checks it implicates, and proposes the code fix. Needs the MCP server. Proposes, never applies. |
+| `linq-reputation` skill | Diagnoses why a specific line is Needs Attention or Delivery Limited (legacy `AT_RISK` / `CRITICAL`), or flagged: runs Linq's reputation audit, maps each driver to the checks it implicates, and proposes the code fix. Needs the MCP server. Proposes, never applies. |
 | `/linq-audit` command | Sweeps an integration against the whole checklist. No credentials needed. Read-only; reports a table and a ranked action list. |
 | MCP server | `search_docs` to find the right method and parameters, `execute` to run TypeScript against an authenticated client. |
 
