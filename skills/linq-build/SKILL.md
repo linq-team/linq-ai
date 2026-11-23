@@ -172,7 +172,7 @@ Two signals, different scopes. Read both before sending at volume.
 
 Gate on `state`. `reputation.status` (`HEALTHY` / `AT_RISK` / `CRITICAL`) is the legacy field, derived from `state`: `HEALTHY` and `WATCH` report `HEALTHY`, `NEEDS_ATTENTION` reports `AT_RISK`, and `DELIVERY_LIMITED` reports `CRITICAL`. Read it only in code that has not moved to `state` yet, and show partners the state names above.
 
-Subscribe to `phone_number.status_updated` to react when a line changes rather than polling `GET /v3/phone_numbers` before every send. Read `previous_state` and `new_state` from the event; `previous_reputation` and `new_reputation` are the legacy pair, and the event also fires when only the state changes, so those two can be equal.
+Subscribe to `phone_number.status_updated` to react when a line changes rather than polling `GET /v3/phone_numbers` before every send. Read `previous_state` and `new_state` from the event. Both are optional, so when they are missing fall back to the legacy `previous_reputation` / `new_reputation`, which every event carries: `HEALTHY` means no action, `AT_RISK` maps to Needs Attention, and `CRITICAL` maps to Delivery Limited. The event also fires when only the state changes, so the two legacy values can be equal.
 
 Onboard new users onto `HEALTHY` lines. Keep existing recipients on a Needs Attention line rather than migrating them to escape the state. Migration moves the traffic that caused it and takes the problem along.
 

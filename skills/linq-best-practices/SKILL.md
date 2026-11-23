@@ -97,7 +97,10 @@ you to stop, blocking is you refusing traffic from a handle.
   `DELIVERY_LIMITED` to `CRITICAL`.
 - Handle the `phone_number.status_updated` webhook and read `previous_state` /
   `new_state`, so the code reacts when a line's state changes rather than
-  discovering it on the next send.
+  discovering it on the next send. Both fields are optional: when they are missing,
+  the handler falls back to the legacy `new_reputation` (`AT_RISK` as Needs
+  Attention, `CRITICAL` as Delivery Limited). A handler that reads `new_state`
+  with no fallback is a finding.
 - Onboard new users onto `HEALTHY` lines. Keep users on a Needs Attention line rather
   than migrating them to escape the state. Improve engagement and let the line
   recover. Migration spreads the problem and resets nothing.

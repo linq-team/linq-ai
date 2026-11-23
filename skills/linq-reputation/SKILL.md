@@ -33,7 +33,9 @@ One cheap call, no audit needed:
 GET /v3/phone_numbers   →   client.phoneNumbers.list()
 ```
 
-Each line carries `reputation.state` and a `doc_url`. Rank on `state`:
+Each line carries `reputation.state`, `reputation.reason_codes` (what is behind
+the state, in the same vocabulary as the audit's driver keys) and a `doc_url`.
+Rank on `state`, and show each line's `reason_codes` beside it:
 
 - `DELIVERY_LIMITED` (Delivery Limited): outbound messages are not being
   delivered. Worst.
@@ -70,8 +72,10 @@ Handle these, they are normal:
   the user when they can re-run; do not spin.
 - **`404` on the audit endpoints, or no such SDK method** — this API may not be
   available on the caller's SDK version. Fall back: report `reputation.state`
-  from Step 1, note that driver-level diagnosis is unavailable, and run the full
-  `linq-best-practices` checklist instead of a targeted one. Say that is what you
+  and `reputation.reason_codes` from Step 1, note that the audit's per-chat
+  evidence is unavailable, and run the full `linq-best-practices` checklist
+  instead of a targeted one. Use the `reason_codes` with the Step 3 table to say
+  which sections matter most. Say that is what you
   are doing.
 
 Each `execute` call is capped near 5 minutes total with 30 seconds per request. If
@@ -114,7 +118,7 @@ driver to unrelated code because it was the closest match.
 
 ## Step 5 — Report
 
-1. **What the line's reputation is** — status, and each driver with its `summary`
+1. **What the line's state is**: the state name, and each driver with its `summary`
    and `metric`.
 2. **What the code does** — table of Driver | Check | Status (pass / gap / unknown)
    | Where (`file:line`).
