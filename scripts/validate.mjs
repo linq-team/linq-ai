@@ -47,7 +47,9 @@ function checkRules(root, errors, contentFiles) {
   for (const file of walk(join(root, 'rules'))) {
     const ext = extname(file);
     if (ext === '.md' || ext === '.markdown') {
-      errors.push(`${file}: rules must use the .mdc extension — Cursor ignores .md files in rules/`);
+      errors.push(
+        `${file}: rules must use the .mdc extension — Cursor ignores .md files in rules/`,
+      );
       continue;
     }
     if (ext !== '.mdc') continue;
@@ -68,7 +70,9 @@ function checkRules(root, errors, contentFiles) {
     }
     const lines = text.split('\n').length;
     if (lines > MAX_RULE_LINES) {
-      errors.push(`${file}: ${lines} lines exceeds the ${MAX_RULE_LINES}-line guidance — move detail into a skill`);
+      errors.push(
+        `${file}: ${lines} lines exceeds the ${MAX_RULE_LINES}-line guidance — move detail into a skill`,
+      );
     }
   }
 }
@@ -92,7 +96,9 @@ function checkSkills(root, errors, contentFiles) {
     }
     if (!fm.description) errors.push(`${skillFile}: frontmatter needs a description`);
     if (fm.name !== name) {
-      errors.push(`${skillFile}: frontmatter name "${fm.name}" must match its folder name "${name}"`);
+      errors.push(
+        `${skillFile}: frontmatter name "${fm.name}" must match its folder name "${name}"`,
+      );
     }
   }
 }
@@ -113,13 +119,17 @@ function checkManifests(root, errors) {
     if (!manifest.name) {
       errors.push(`${file}: manifest needs a name`);
     } else if (!/^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/.test(manifest.name)) {
-      errors.push(`${file}: name "${manifest.name}" must be lowercase kebab-case starting and ending alphanumeric`);
+      errors.push(
+        `${file}: name "${manifest.name}" must be lowercase kebab-case starting and ending alphanumeric`,
+      );
     }
     // The published schema is additionalProperties:false on author.
     if (manifest.author) {
       for (const key of Object.keys(manifest.author)) {
         if (!['name', 'email'].includes(key)) {
-          errors.push(`${file}: author.${key} is not in the plugin schema — author allows only name and email`);
+          errors.push(
+            `${file}: author.${key} is not in the plugin schema — author allows only name and email`,
+          );
         }
       }
     }
@@ -127,7 +137,9 @@ function checkManifests(root, errors) {
   const names = Object.entries(manifests).map(([host, m]) => [host, m.name]);
   const distinct = new Set(names.map(([, name]) => name));
   if (distinct.size > 1) {
-    errors.push(`manifests disagree on plugin name: ${names.map(([h, n]) => `${h}=${n}`).join(', ')}`);
+    errors.push(
+      `manifests disagree on plugin name: ${names.map(([h, n]) => `${h}=${n}`).join(', ')}`,
+    );
   }
 
   // Each host validates differently. These three checks encode the ways the
@@ -144,23 +156,44 @@ function checkManifests(root, errors) {
   if (codex) {
     // Mirrors openai/codex validate_plugin.py, which rejects unknown top-level keys.
     if (codex.displayName) {
-      errors.push('.codex-plugin/plugin.json: "displayName" is rejected by Codex — it belongs under "interface"');
+      errors.push(
+        '.codex-plugin/plugin.json: "displayName" is rejected by Codex — it belongs under "interface"',
+      );
     }
     const iface = codex.interface;
     if (!iface || typeof iface !== 'object') {
-      errors.push('.codex-plugin/plugin.json: needs an "interface" object — Codex validation fails without it');
+      errors.push(
+        '.codex-plugin/plugin.json: needs an "interface" object — Codex validation fails without it',
+      );
     } else {
-      for (const field of ['displayName', 'shortDescription', 'longDescription', 'developerName', 'category']) {
-        if (!iface[field]) errors.push(`.codex-plugin/plugin.json: interface.${field} is required and non-empty`);
+      for (const field of [
+        'displayName',
+        'shortDescription',
+        'longDescription',
+        'developerName',
+        'category',
+      ]) {
+        if (!iface[field])
+          errors.push(`.codex-plugin/plugin.json: interface.${field} is required and non-empty`);
       }
-      if (!Array.isArray(iface.capabilities) || iface.capabilities.some((c) => typeof c !== 'string')) {
-        errors.push('.codex-plugin/plugin.json: interface.capabilities must be an array of strings');
+      if (
+        !Array.isArray(iface.capabilities) ||
+        iface.capabilities.some((c) => typeof c !== 'string')
+      ) {
+        errors.push(
+          '.codex-plugin/plugin.json: interface.capabilities must be an array of strings',
+        );
       }
       const prompts = iface.defaultPrompt ?? iface.default_prompt;
       if (!Array.isArray(prompts) || prompts.length === 0) {
         errors.push('.codex-plugin/plugin.json: interface.defaultPrompt is required');
-      } else if (prompts.length > 3 || prompts.some((p) => typeof p !== 'string' || p.length > 128)) {
-        errors.push('.codex-plugin/plugin.json: interface.defaultPrompt allows at most 3 entries of <=128 chars');
+      } else if (
+        prompts.length > 3 ||
+        prompts.some((p) => typeof p !== 'string' || p.length > 128)
+      ) {
+        errors.push(
+          '.codex-plugin/plugin.json: interface.defaultPrompt allows at most 3 entries of <=128 chars',
+        );
       }
       if (iface.brandColor && !/^#[0-9A-F]{6}$/.test(iface.brandColor)) {
         errors.push('.codex-plugin/plugin.json: interface.brandColor must be #RRGGBB');
@@ -185,7 +218,9 @@ function checkMcpPinAgreement(root, errors, manifests) {
   for (const [name, server] of Object.entries(shared ?? {})) {
     const codexServer = inline[name];
     if (!codexServer) {
-      errors.push(`.codex-plugin/plugin.json: mcpServers is missing "${name}", which mcp.json defines`);
+      errors.push(
+        `.codex-plugin/plugin.json: mcpServers is missing "${name}", which mcp.json defines`,
+      );
       continue;
     }
     const a = JSON.stringify([server.command, server.args ?? []]);
@@ -215,9 +250,7 @@ function checkMcp(root, errors, manifests) {
   }
   // Inside a plugin's mcp.json, ${VAR} resolves against plugin variables — which
   // only team admins can set. Every placeholder must have a declared variable.
-  const declared = new Set(
-    Object.keys(manifests['.cursor-plugin']?.variables?.properties ?? {}),
-  );
+  const declared = new Set(Object.keys(manifests['.cursor-plugin']?.variables?.properties ?? {}));
   for (const [name, server] of Object.entries(servers)) {
     const raw = JSON.stringify(server);
     for (const match of raw.matchAll(/\$\{([^}]+)\}/g)) {
@@ -229,7 +262,9 @@ function checkMcp(root, errors, manifests) {
     }
     for (const arg of server.args ?? []) {
       if (arg.startsWith('/')) {
-        errors.push(`${file}: server "${name}" uses an absolute path "${arg}" — plugin paths must be relative`);
+        errors.push(
+          `${file}: server "${name}" uses an absolute path "${arg}" — plugin paths must be relative`,
+        );
       }
       if (arg.includes('..')) {
         errors.push(`${file}: server "${name}" arg "${arg}" escapes the plugin root with ".."`);

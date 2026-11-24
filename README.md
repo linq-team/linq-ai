@@ -100,12 +100,14 @@ reverting it.
 ## Contributing
 
 ```bash
-node scripts/validate.mjs                                        # content + manifest checks
-node --test test/validate.test.mjs                               # fast, offline
-node --test --test-timeout=300000 test/mcp-smoke.test.mjs        # real server, needs network
+npm ci
+npm run lint         # scripts/validate.mjs (content + manifest checks) + prettier --check
+npm run format       # prettier --write on code and manifests (markdown is left alone)
+npm test             # fast, offline
+npm run test:smoke   # real MCP server, needs network
 ```
 
-Both must pass before a PR merges. `scripts/validate.mjs` enforces the things that are easy to regress and invisible until a user hits them:
+CI runs the same commands, and the `ci` check passes only when all of them do. `scripts/validate.mjs` enforces the things that are easy to regress and invisible until a user hits them:
 
 - Rules use `.mdc` with valid frontmatter and stay under 500 lines — a `.md` file in `rules/` is silently ignored by Cursor.
 - Each skill's frontmatter `name` matches its folder name.

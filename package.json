@@ -1,0 +1,18 @@
+{
+  "name": "linq-ai",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "lint": "node scripts/validate.mjs && prettier --check .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test test/validate.test.mjs",
+    "test:smoke": "node --test --test-timeout=300000 test/mcp-smoke.test.mjs"
+  },
+  "devDependencies": {
+    "prettier": "3.10.1"
+  }
+}

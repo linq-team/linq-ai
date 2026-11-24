@@ -31,7 +31,11 @@ function startServer() {
     // A syntactically valid placeholder. search_docs is a local index and execute
     // runs sandboxed code that never reaches the network, so neither needs a real
     // key — but the client refuses to initialize without something non-empty.
-    env: { ...process.env, ...(serverConfig.env ?? {}), LINQ_API_V3_API_KEY: 'smoke-test-placeholder' },
+    env: {
+      ...process.env,
+      ...(serverConfig.env ?? {}),
+      LINQ_API_V3_API_KEY: 'smoke-test-placeholder',
+    },
   });
 
   const pending = new Map();
@@ -114,7 +118,10 @@ test('search_docs returns documentation', { skip: SKIP }, async () => {
     name: 'search_docs',
     arguments: { query: 'send a message', language: 'typescript' },
   });
-  assert.ok(!response.error, `search_docs returned a JSON-RPC error: ${JSON.stringify(response.error)}`);
+  assert.ok(
+    !response.error,
+    `search_docs returned a JSON-RPC error: ${JSON.stringify(response.error)}`,
+  );
   const text = response.result?.content?.[0]?.text ?? '';
   assert.notEqual(response.result?.isError, true, `search_docs errored: ${text}`);
   assert.match(text, /client\./);
