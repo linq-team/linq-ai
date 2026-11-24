@@ -12,8 +12,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node scripts/validate.mjs
-      - run: node --test test/validate.test.mjs
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
 
   mcp-smoke:
     # Runs the real MCP server using the exact command mcp.json ships. This is what
@@ -25,4 +27,21 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: node --test --test-timeout=300000 test/mcp-smoke.test.mjs
+          cache: npm
+      - run: npm ci
+      - run: npm run test:smoke
+
+  # The one required check. Add every job that must pass to `needs`.
+  ci:
+    if: always()
+    needs: [validate, mcp-smoke]
+    runs-on: ubuntu-latest
+    steps:
+      - name: All required jobs succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "needs results: $RESULTS"
+          for r in $RESULTS; do
+            [ "$r" = success ] || { echo "a required job ended with: $r"; exit 1; }
+          done
