@@ -1,0 +1,8 @@
+*.md
+*.mdc
+skills/
+rules/
+commands/
+plans/
+assets/
+package-lock.json
